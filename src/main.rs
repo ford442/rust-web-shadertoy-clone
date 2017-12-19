@@ -44,11 +44,11 @@ impl Viewer {
         }
     }
 
-    pub fn set_program(&mut self, source: &[u8]) -> Result<(), String> {
+    pub fn set_program(&mut self, vert_src: &[u8], frag_source: &[u8]) -> Result<(), String> {
         let gl = &self.gl;
         let old_program = self.program;
-        let f_shader = try!(load_shader(gl, gl::FRAGMENT_SHADER, &[source]));
-        let v_shader = try!(load_shader(gl, gl::VERTEX_SHADER, &[VS_SRC]));
+        let v_shader = try!(load_shader(gl, gl::VERTEX_SHADER, &[vert_src]));
+        let f_shader = try!(load_shader(gl, gl::FRAGMENT_SHADER, &[frag_source]));
         self.program = gl.create_program();
         gl.attach_shader(self.program, v_shader);
         gl.attach_shader(self.program, f_shader);
@@ -104,13 +104,19 @@ fn my_string_safe(i: *mut c_char) -> String {
 
 
 #[no_mangle]
-pub extern "C" fn set_program(i: *mut c_char) -> *mut c_char {
-    let data = my_string_safe(i);
+pub extern "C" fn set_program(vert: *mut c_char, frag: *mut c_char) -> *mut c_char {
+    let vert_data = my_string_safe(vert);
+    let frag_data = my_string_safe(frag);
     let result: Result<_, String> = CONTEXT.with(|ctxref| {
         ctxref
             .borrow_mut()
             .as_mut()
-            .map(|ctx| ctx.viewer.set_program(data.as_bytes()))
+            .map(|ctx| {
+                ctx.viewer.set_program(
+                    vert_data.as_bytes(),
+                    frag_data.as_bytes(),
+                )
+            })
             .unwrap()
     });
     match result {
@@ -151,7 +157,7 @@ fn main() {
         CONTEXT.with(|ctxref| { *ctxref.borrow_mut() = Some(Context::new(gl)); });
         CONTEXT.with(|ctxref| {
             ctxref.borrow_mut().as_mut().map(|ctx| {
-                ctx.viewer.set_program(FS_SRC).unwrap();
+                ctx.viewer.set_program(VS_SRC, FS_SRC).unwrap();
             });
         });
         emscripten_set_main_loop(Some(loop_wrapper), 0, 1);

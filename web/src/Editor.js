@@ -9,47 +9,33 @@ import 'brace/theme/monokai';
 class Editor extends Component {
   constructor(props) {
     super(props);
-    const default_frag_src = `#version 300 es
-precision mediump float;
-
-// uniforms
-uniform float iTime;
-
-// in vars
-in vec2 texCoord;
-
-// out vars
-out vec4 fragColor;
-
-void main() {
-  fragColor = vec4(texCoord, 0.5 * (1.0 + cos(iTime)), 1.0);
-}`;
-    this.state = {annotations: [], src: default_frag_src};
+    this.state = {
+      annotations: [],
+      value: this.props.value,
+    };
   }
 
   componentDidMount() {
-    this.props.glContainer.setTitle('Editor');
+    this.props.glContainer.setTitle(this.props.title);
   }
 
   render() {
+
     const that = this;
-    let onChange = function(s) {
-      const set_program =
-          window.Module.cwrap('set_program', 'string', ['string']);
-      const result = set_program(s);
-      const annotations = [];
-      if (result) {
-        annotations.push({row: 0, column: 0, type: 'error', text: result});
-      }
-      that.setState({annotations: annotations, src: s});
+    const onChange = function(s) {
+      const annotations = that.props.onChange(s);
+      that.setState({annotations: annotations, value: s});
     };
+
 
     return (
         <AceEditor width = '100vw' height = '100vw' mode = 'glsl' theme =
-             'monokai' name = 'editor' value = {this.state.src} editorProps = {
-      { $blockScrolling: Infinity }
-             } onChange = {onChange} annotations = {
-      this.state.annotations} />);
+            'monokai' name = 'editor'
+            value = {this.state.value}
+            editorProps = {{ $blockScrolling: Infinity }}
+            onChange = {onChange}
+            annotations = {this.state.annotations}
+      />);
   }
 }
 
