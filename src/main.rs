@@ -1,77 +1,56 @@
 extern crate emscripten_sys;
 extern crate gleam;
 
-use emscripten_sys::{emscripten_set_main_loop, emscripten_GetProcAddress,
+use emscripten_sys::{emscripten_GetProcAddress, emscripten_exit_with_live_runtime,
                      emscripten_webgl_init_context_attributes, emscripten_webgl_create_context,
-                     emscripten_webgl_make_context_current, emscripten_get_element_css_size,
-                     EmscriptenWebGLContextAttributes};
+                     emscripten_webgl_make_context_current, EmscriptenWebGLContextAttributes};
+
 use gleam::gl;
 use gleam::gl::{GLenum, GLuint};
-use std::cell::RefCell;
 use std::os::raw::c_char;
 use std::ffi::CStr;
-use std::ffi::CString;
+//use std::ffi::CString;
 
 type GlPtr = std::rc::Rc<gl::Gl>;
 
 #[derive(Clone)]
-struct Context {
-    viewer: Viewer,
+pub struct SJContext {
+    sj: SJ,
 }
 
 #[derive(Clone)]
-struct Viewer {
+pub struct SJ {
     gl: GlPtr,
+    vs: GLuint,
+    fs: GLuint,
     program: GLuint,
-    iTime: std::time::Instant,
-    iProgramTime: std::time::Instant,
+    uniform_i_time: std::time::Instant,
+    canvas_width: i32,
+    canvas_height: i32,
 }
 
-impl Context {
-    fn new(gl: GlPtr) -> Context {
-        Context { viewer: Viewer::new(gl) }
+fn gleam_emscripten_init() -> GlPtr {
+    unsafe {
+        gl::GlesFns::load_with(|addr| {
+            let addr = std::ffi::CString::new(addr).unwrap();
+            emscripten_GetProcAddress(addr.into_raw() as *const _) as *const _
+        })
     }
 }
 
-impl Viewer {
-    pub fn new(gl: GlPtr) -> Viewer {
-        let now = std::time::Instant::now();
-        Viewer {
-            gl: gl,
-            program: 0,
-            iTime: now,
-            iProgramTime: now,
-        }
+fn main() {
+    unsafe {
+        emscripten_exit_with_live_runtime();
     }
+}
 
-    pub fn set_program(&mut self, vert_src: &[u8], frag_source: &[u8]) -> Result<(), String> {
-        let gl = &self.gl;
-        let old_program = self.program;
-        let v_shader = try!(load_shader(gl, gl::VERTEX_SHADER, &[vert_src]));
-        let f_shader = try!(load_shader(gl, gl::FRAGMENT_SHADER, &[frag_source]));
-        self.program = gl.create_program();
-        gl.attach_shader(self.program, v_shader);
-        gl.attach_shader(self.program, f_shader);
-        gl.link_program(self.program);
-        gl.delete_shader(v_shader);
-        gl.delete_shader(f_shader);
-        gl.delete_program(old_program);
-        Ok(())
-    }
+fn my_string_safe(i: *mut c_char) -> String {
+    unsafe { CStr::from_ptr(i).to_string_lossy().into_owned() }
+}
 
-    pub fn draw(&self, width: u32, height: u32) {
-        let gl = &self.gl;
-        let now = std::time::Instant::now();
-        let iTime = now - self.iTime;
-        let iProgramTime = now - self.iProgramTime;
-        gl.viewport(0, 0, width as i32, height as i32);
-        gl.clear(gl::COLOR_BUFFER_BIT);
-        gl.use_program(self.program);
-        let i_time_loc = gl.get_uniform_location(self.program, "iTime");
-        let i_time_s = iTime.as_secs() as f32 + iTime.subsec_nanos() as f32 / 1_000_000_000.0;
-
-        gl.uniform_1f(i_time_loc, i_time_s);
-        gl.draw_arrays(gl::TRIANGLES, 0, 3);
+impl SJContext {
+    pub fn new(gl: GlPtr) -> SJContext {
+        SJContext { sj: SJ::new(gl) }
     }
 }
 
@@ -91,97 +70,175 @@ fn load_shader(gl: &GlPtr, shader_type: GLenum, source: &[&[u8]]) -> Result<GLui
     Ok(shader)
 }
 
+impl SJ {
+    pub fn new(gl: GlPtr) -> SJ {
+        SJ {
+            gl: gl,
+            vs: 0,
+            fs: 0,
+            program: 0,
+            uniform_i_time: std::time::Instant::now(),
+            canvas_width: 0,
+            canvas_height: 0,
+        }
+    }
 
-// emscripten
+    pub fn set_program(&mut self, vs_src: &[u8], fs_src: &[u8]) -> Result<(), String> {
+        let gl = &self.gl;
+        let old_vs_shader = self.vs;
+        let new_vs_shader = try!(load_shader(gl, gl::VERTEX_SHADER, &[vs_src]));
+        let old_fs_shader = self.fs;
+        let new_fs_shader = try!(load_shader(gl, gl::FRAGMENT_SHADER, &[fs_src]));
 
-thread_local! {
-    static CONTEXT : RefCell<Option<Context>> = RefCell::new(None);
+        let old_program = self.program;
+        let new_program = gl.create_program();
+
+        gl.attach_shader(new_program, new_vs_shader);
+        gl.attach_shader(new_program, new_fs_shader);
+        gl.link_program(new_program);
+
+        gl.delete_shader(old_vs_shader);
+        gl.delete_shader(old_fs_shader);
+        gl.delete_program(old_program);
+
+        self.vs = new_vs_shader;
+        self.fs = new_fs_shader;
+        self.program = new_program;
+        Ok(())
+    }
+
+    pub fn set_vertex_shader(&mut self, src: &[u8]) -> Result<(), String> {
+        let gl = &self.gl;
+        let old_shader = self.vs;
+        let new_shader = try!(load_shader(gl, gl::VERTEX_SHADER, &[src]));
+
+        let old_program = self.program;
+        let new_program = gl.create_program();
+
+        gl.attach_shader(new_program, new_shader);
+        gl.attach_shader(new_program, self.fs);
+        gl.link_program(new_program);
+        gl.delete_shader(old_shader);
+        gl.delete_program(old_program);
+        self.vs = new_shader;
+        self.program = new_program;
+        Ok(())
+    }
+
+    pub fn set_fragment_shader(&mut self, src: &[u8]) -> Result<(), String> {
+        let gl = &self.gl;
+        let old_shader = self.fs;
+        let new_shader = try!(load_shader(gl, gl::FRAGMENT_SHADER, &[src]));
+
+        let old_program = self.program;
+        let new_program = gl.create_program();
+
+        gl.attach_shader(new_program, new_shader);
+        gl.attach_shader(new_program, self.vs);
+        gl.link_program(new_program);
+        gl.delete_shader(old_shader);
+        gl.delete_program(old_program);
+
+        self.fs = new_shader;
+        self.program = new_program;
+        Ok(())
+    }
+
+    pub fn set_canvas_size(&mut self, width: i32, height: i32) {
+        self.canvas_width = width;
+        self.canvas_height = height;
+    }
+
+    pub fn draw(&mut self) {
+        if self.program == 0 {
+            return;
+        }
+        let gl = &self.gl;
+        let now = std::time::Instant::now();
+        let i_time = now - self.uniform_i_time;
+        let i_time_loc = gl.get_uniform_location(self.program, "iTime");
+        let i_time_s = i_time.as_secs() as f32 + i_time.subsec_nanos() as f32 / 1_000_000_000.0;
+        gl.viewport(0, 0, self.canvas_width, self.canvas_height);
+        gl.clear(gl::COLOR_BUFFER_BIT);
+        gl.use_program(self.program);
+        gl.uniform_1f(i_time_loc, i_time_s);
+        gl.draw_arrays(gl::TRIANGLES, 0, 3);
+    }
 }
-
-fn my_string_safe(i: *mut c_char) -> String {
-    unsafe { CStr::from_ptr(i).to_string_lossy().into_owned() }
-}
-
 
 #[no_mangle]
-pub extern "C" fn set_program(vert: *mut c_char, frag: *mut c_char) -> *mut c_char {
-    let vert_data = my_string_safe(vert);
-    let frag_data = my_string_safe(frag);
-    let result: Result<_, String> = CONTEXT.with(|ctxref| {
-        ctxref
-            .borrow_mut()
-            .as_mut()
-            .map(|ctx| {
-                ctx.viewer.set_program(
-                    vert_data.as_bytes(),
-                    frag_data.as_bytes(),
-                )
-            })
-            .unwrap()
-    });
-    match result {
-        Ok(_) => return CString::new("").unwrap().into_raw(),
-        Err(e) => unsafe {
-            return CString::from_vec_unchecked(e.as_bytes().to_vec()).into_raw();
-        },
-    }
-}
-
-extern "C" fn loop_wrapper() {
-    let (w, h) = get_canvas_size();
-    CONTEXT.with(|ctxref| {
-        ctxref.borrow().as_ref().unwrap().viewer.draw(w, h);
-    });
-}
-
-fn get_canvas_size() -> (u32, u32) {
-    unsafe {
-        let mut width = std::mem::uninitialized();
-        let mut height = std::mem::uninitialized();
-        emscripten_get_element_css_size(std::ptr::null(), &mut width, &mut height);
-        (width as u32, height as u32)
-    }
-}
-
-fn main() {
+pub extern "C" fn sj_create_webgl_context() {
     unsafe {
         let mut attributes: EmscriptenWebGLContextAttributes = std::mem::uninitialized();
         emscripten_webgl_init_context_attributes(&mut attributes);
         attributes.majorVersion = 2;
         let handle = emscripten_webgl_create_context(std::ptr::null(), &attributes);
         emscripten_webgl_make_context_current(handle);
-        let gl = gl::GlesFns::load_with(|addr| {
-            let addr = std::ffi::CString::new(addr).unwrap();
-            emscripten_GetProcAddress(addr.into_raw() as *const _) as *const _
-        });
-        CONTEXT.with(|ctxref| { *ctxref.borrow_mut() = Some(Context::new(gl)); });
-        CONTEXT.with(|ctxref| {
-            ctxref.borrow_mut().as_mut().map(|ctx| {
-                ctx.viewer.set_program(VS_SRC, FS_SRC).unwrap();
-            });
-        });
-        emscripten_set_main_loop(Some(loop_wrapper), 0, 1);
     }
 }
 
-const VS_SRC: &'static [u8] = b"#version 300 es
-
-out vec2 texCoord;
-void main()
-{
-    float x = -1.0 + float((gl_VertexID & 1) << 2);
-    float y = -1.0 + float((gl_VertexID & 2) << 1);
-    texCoord.x = (x+1.0)*0.5;
-    texCoord.y = (y+1.0)*0.5;
-    gl_Position = vec4(x, y, 0, 1);
+#[no_mangle]
+pub extern "C" fn sj_emscripten_init() -> *mut SJ {
+    let r = Box::new(SJ::new(gleam_emscripten_init()));
+    Box::into_raw(r)
 }
-";
 
-const FS_SRC: &'static [u8] = b"#version 300 es
-precision mediump float;
-in vec2 texCoord;
-out vec4 out_fragColor;
-void main() {
-    out_fragColor = vec4(1.0, 0.0, 0.0, 1.0);
+#[no_mangle]
+pub extern "C" fn sj_destroy(r: *mut SJ) {
+    unsafe {
+        let _r = Box::from_raw(r);
+    }
 }
-";
+
+#[no_mangle]
+pub extern "C" fn sj_set_program(r: *mut SJ, vs_src: *mut c_char, fs_src: *mut c_char) {
+    let vs_data = my_string_safe(vs_src);
+    let fs_data = my_string_safe(fs_src);
+    unsafe {
+        let mut r = Box::from_raw(r);
+        let result = r.set_program(vs_data.as_bytes(), fs_data.as_bytes());
+        match result {
+            Err(e) => println!("{:?}", e),
+            Ok(_) => (),
+        };
+        std::mem::forget(r);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn sj_set_vertex_shader(r: *mut SJ, src: *mut c_char) {
+    let data = my_string_safe(src);
+    unsafe {
+        let mut r = Box::from_raw(r);
+        r.set_vertex_shader(data.as_bytes()).unwrap();
+        std::mem::forget(r);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn sj_set_fragment_shader(r: *mut SJ, src: *mut c_char) {
+    let data = my_string_safe(src);
+    unsafe {
+        let mut r = Box::from_raw(r);
+        r.set_fragment_shader(data.as_bytes()).unwrap();
+        std::mem::forget(r);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn sj_set_canvas_size(r: *mut SJ, width: i32, height: i32) {
+    unsafe {
+        let mut r = Box::from_raw(r);
+        r.set_canvas_size(width, height);
+        std::mem::forget(r);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn sj_draw(r: *mut SJ) {
+    unsafe {
+        let mut r = Box::from_raw(r);
+        r.draw();
+        std::mem::forget(r);
+    }
+}

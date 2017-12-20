@@ -56,47 +56,78 @@ class App extends React.PureComponent {
         window.Module = {};
         window.Module.wasmBinary = buffer;
         window.Module.canvas = document.getElementById(Config.canvasId);
+        window.Module.onRuntimeInitialized = () => {
+          window.Module.sj = {};
+          const SJ = window.Module.sj;
+          SJ.ffi = {};
+          SJ.ffi.create_webgl_context= window.Module.cwrap('sj_create_webgl_context', null, []);
+          SJ.ffi.init = window.Module.cwrap('sj_emscripten_init', 'number', []);
+          SJ.ffi.destroy = window.Module.cwrap('sj_destroy', null, ['number']);
+          SJ.ffi.set_program = window.Module.cwrap('sj_set_program', null, ['number', 'string', 'string']);
+          SJ.ffi.set_vertex_shader= window.Module.cwrap('sj_set_vertex_shader', null, ['number', 'string']);
+          SJ.ffi.set_fragment_shader= window.Module.cwrap('sj_set_fragment_shader', null, ['number', 'string']);
+          SJ.ffi.set_canvas_size= window.Module.cwrap('sj_set_canvas_size', null, ['number', 'number', 'number']);
+          SJ.ffi.draw= window.Module.cwrap('sj_draw', null, ['number']);
+
+          SJ.set_program = (vs, fs) => {
+            const ctx = SJ.ctx;
+            SJ.ffi.set_program(ctx, vs, fs)
+          };
+          SJ.set_vertex_shader = (s) => {
+            const ctx = SJ.ctx;
+            SJ.ffi.set_vertex_shader(ctx, s)
+          };
+          SJ.set_fragment_shader = (s) => {
+            const ctx = SJ.ctx;
+            SJ.ffi.set_fragment_shader(ctx, s)
+          };
+          SJ.set_canvas_size = (w, h) => {
+            const ctx = SJ.ctx;
+            SJ.ffi.set_canvas_size(ctx, w, h)
+          };
+          SJ.draw = () => {
+            const ctx = SJ.ctx;
+            SJ.ffi.draw(ctx)
+          };
+
+          const loop = () => {
+            SJ.set_canvas_size(window.Module.canvas.width, window.Module.canvas.height);
+            SJ.draw();
+            window.requestAnimationFrame(loop);
+          };
+
+          SJ.ffi.create_webgl_context();
+          SJ.ctx = SJ.ffi.init();
+          SJ.set_program(default_vert_src, default_frag_src);
+          loop();
+        };
 
         // script
         var script = document.createElement('script');
-        script.src = "shaderjob.js";
         document.body.appendChild(script);
+        script.src = "shaderjob.js";
       });
 
-    let rowFromGlErr = function(e) {
-      return 0;
-    };
-
-    const setProgram = function(v, f) {
-      const set_program =
-          window.Module.cwrap('set_program', 'string', ['string', 'string']);
-      const err = set_program(v,f);
-      const annotations = [];
-      if (err) {
-        const row = rowFromGlErr(err);
-        annotations.push({row: row, column: 0, type: 'error', text: err});
-      }
-      return annotations;
-    };
-
     const app = this;
-    let onVertChange = function(s) {
+
+    const onVertChange = function(s) {
       app.setState((prev, props) => {
         return {
           vs: s,
           fs: prev.fs
         };
       });
-      return setProgram(s, app.state.fs);
+      window.Module.sj.set_program(s, app.state.fs);
     };
-    let onFragChange = function(s) {
+
+    const onFragChange = function(s) {
       app.setState((prev, props) => {
         return {
           vs: prev.vs,
           fs: s
         };
       });
-      return setProgram(app.state.vs, s);
+      window.Module.sj.set_program(app.state.vs, s);
     };
 
     const config = {
