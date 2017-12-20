@@ -63,42 +63,39 @@ class App extends React.PureComponent {
           SJ.ffi.create_webgl_context= window.Module.cwrap('sj_create_webgl_context', null, []);
           SJ.ffi.init = window.Module.cwrap('sj_emscripten_init', 'number', []);
           SJ.ffi.destroy = window.Module.cwrap('sj_destroy', null, ['number']);
-          SJ.ffi.set_program = window.Module.cwrap('sj_set_program', null, ['number', 'string', 'string']);
-          SJ.ffi.set_vertex_shader= window.Module.cwrap('sj_set_vertex_shader', null, ['number', 'string']);
-          SJ.ffi.set_fragment_shader= window.Module.cwrap('sj_set_fragment_shader', null, ['number', 'string']);
-          SJ.ffi.set_canvas_size= window.Module.cwrap('sj_set_canvas_size', null, ['number', 'number', 'number']);
-          SJ.ffi.draw= window.Module.cwrap('sj_draw', null, ['number']);
+          SJ.ffi.set_program = window.Module.cwrap('sj_set_program', 'string', ['number', 'string', 'string']);
+          SJ.ffi.set_vertex_shader= window.Module.cwrap('sj_set_vertex_shader', 'string', ['number', 'string']);
+          SJ.ffi.set_fragment_shader= window.Module.cwrap('sj_set_fragment_shader', 'string', ['number', 'string']);
+          SJ.ffi.draw= window.Module.cwrap('sj_draw', null, ['number', 'number', 'number']);
 
           SJ.set_program = (vs, fs) => {
             const ctx = SJ.ctx;
-            SJ.ffi.set_program(ctx, vs, fs)
+            return SJ.ffi.set_program(ctx, vs, fs);
           };
           SJ.set_vertex_shader = (s) => {
             const ctx = SJ.ctx;
-            SJ.ffi.set_vertex_shader(ctx, s)
+            return SJ.ffi.set_vertex_shader(ctx, s);
           };
           SJ.set_fragment_shader = (s) => {
             const ctx = SJ.ctx;
-            SJ.ffi.set_fragment_shader(ctx, s)
+            return SJ.ffi.set_fragment_shader(ctx, s);
           };
-          SJ.set_canvas_size = (w, h) => {
+          SJ.draw = (w, h) => {
             const ctx = SJ.ctx;
-            SJ.ffi.set_canvas_size(ctx, w, h)
-          };
-          SJ.draw = () => {
-            const ctx = SJ.ctx;
-            SJ.ffi.draw(ctx)
+            SJ.ffi.draw(ctx, w, h)
           };
 
           const loop = () => {
-            SJ.set_canvas_size(window.Module.canvas.width, window.Module.canvas.height);
-            SJ.draw();
+            SJ.draw(window.Module.canvas.width, window.Module.canvas.height);
             window.requestAnimationFrame(loop);
           };
 
           SJ.ffi.create_webgl_context();
           SJ.ctx = SJ.ffi.init();
-          SJ.set_program(default_vert_src, default_frag_src);
+          let err = SJ.set_program(default_vert_src, default_frag_src);
+          if (err) {
+            console.log("ERROR", err);
+          }
           loop();
         };
 
@@ -117,7 +114,7 @@ class App extends React.PureComponent {
           fs: prev.fs
         };
       });
-      window.Module.sj.set_vertex_shader(s);
+      return window.Module.sj.set_vertex_shader(s);
     };
 
     const onFragChange = function(s) {
@@ -127,7 +124,7 @@ class App extends React.PureComponent {
           fs: s
         };
       });
-      window.Module.sj.set_fragment_shader(s);
+      return window.Module.sj.set_fragment_shader(s);
     };
 
     const config = {

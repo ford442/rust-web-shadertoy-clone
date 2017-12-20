@@ -21,9 +21,20 @@ class Editor extends Component {
 
   render() {
 
+    const rowFromGlErr = function(e) {
+      const re = /^ERROR:\s+\d+:(\d+)/;
+      const match = re.exec(e);
+      return parseInt(match[1], 10);
+    };
+
     const that = this;
     const onChange = function(s) {
-      const annotations = that.props.onChange(s);
+      const err = that.props.onChange(s);
+      const annotations = [];
+      if (err) {
+        const row = rowFromGlErr(err);
+        annotations.push({row: row - 1, column: 0, type: 'error', text: err});
+      }
       that.setState({annotations: annotations, value: s});
     };
 

@@ -9,7 +9,7 @@ use gleam::gl;
 use gleam::gl::{GLenum, GLuint};
 use std::os::raw::c_char;
 use std::ffi::CStr;
-//use std::ffi::CString;
+use std::ffi::CString;
 
 type GlPtr = std::rc::Rc<gl::Gl>;
 
@@ -25,8 +25,6 @@ pub struct SJ {
     fs: GLuint,
     program: GLuint,
     uniform_i_time: std::time::Instant,
-    canvas_width: i32,
-    canvas_height: i32,
 }
 
 fn gleam_emscripten_init() -> GlPtr {
@@ -72,8 +70,6 @@ impl SJ {
             fs: 0,
             program: 0,
             uniform_i_time: std::time::Instant::now(),
-            canvas_width: 0,
-            canvas_height: 0,
         }
     }
 
@@ -138,12 +134,7 @@ impl SJ {
         Ok(())
     }
 
-    pub fn set_canvas_size(&mut self, width: i32, height: i32) {
-        self.canvas_width = width;
-        self.canvas_height = height;
-    }
-
-    pub fn draw(&mut self) {
+    pub fn draw(&mut self, width: i32, height: i32) {
         if self.program == 0 {
             return;
         }
@@ -152,7 +143,7 @@ impl SJ {
         let i_time = now - self.uniform_i_time;
         let i_time_loc = gl.get_uniform_location(self.program, "iTime");
         let i_time_s = i_time.as_secs() as f32 + i_time.subsec_nanos() as f32 / 1_000_000_000.0;
-        gl.viewport(0, 0, self.canvas_width, self.canvas_height);
+        gl.viewport(0, 0, width, height);
         gl.clear(gl::COLOR_BUFFER_BIT);
         gl.use_program(self.program);
         gl.uniform_1f(i_time_loc, i_time_s);
@@ -191,62 +182,66 @@ pub extern "C" fn sj_destroy(r: *mut SJ) {
 }
 
 #[no_mangle]
-pub extern "C" fn sj_set_program(r: *mut SJ, vs_src: *mut c_char, fs_src: *mut c_char) {
+pub extern "C" fn sj_set_program(
+    r: *mut SJ,
+    vs_src: *mut c_char,
+    fs_src: *mut c_char,
+) -> *mut c_char {
     let vs_data = my_string_safe(vs_src);
     let fs_data = my_string_safe(fs_src);
-    unsafe {
+    let result = unsafe {
         let mut r = Box::from_raw(r);
         let result = r.set_program(vs_data.as_bytes(), fs_data.as_bytes());
-        match result {
-            Err(e) => println!("{:?}", e),
-            Ok(_) => (),
-        };
         std::mem::forget(r);
-    }
+        result
+    };
+    match result {
+        Err(e) => unsafe {
+            return CString::from_vec_unchecked(e.as_bytes().to_vec()).into_raw();
+        },
+        Ok(_) => return CString::new("").unwrap().into_raw(),
+    };
 }
 
 #[no_mangle]
-pub extern "C" fn sj_set_vertex_shader(r: *mut SJ, src: *mut c_char) {
+pub extern "C" fn sj_set_vertex_shader(r: *mut SJ, src: *mut c_char) -> *mut c_char {
     let data = my_string_safe(src);
-    unsafe {
+    let result = unsafe {
         let mut r = Box::from_raw(r);
         let result = r.set_vertex_shader(data.as_bytes());
-        match result {
-            Err(e) => println!("{:?}", e),
-            Ok(_) => (),
-        };
         std::mem::forget(r);
-    }
+        result
+    };
+    match result {
+        Err(e) => unsafe {
+            return CString::from_vec_unchecked(e.as_bytes().to_vec()).into_raw();
+        },
+        Ok(_) => return CString::new("").unwrap().into_raw(),
+    };
 }
 
 #[no_mangle]
-pub extern "C" fn sj_set_fragment_shader(r: *mut SJ, src: *mut c_char) {
+pub extern "C" fn sj_set_fragment_shader(r: *mut SJ, src: *mut c_char) -> *mut c_char {
     let data = my_string_safe(src);
-    unsafe {
+    let result = unsafe {
         let mut r = Box::from_raw(r);
         let result = r.set_fragment_shader(data.as_bytes());
-        match result {
-            Err(e) => println!("{:?}", e),
-            Ok(_) => (),
-        };
         std::mem::forget(r);
-    }
+        result
+    };
+    match result {
+        Err(e) => unsafe {
+            return CString::from_vec_unchecked(e.as_bytes().to_vec()).into_raw();
+        },
+        Ok(_) => return CString::new("").unwrap().into_raw(),
+    };
 }
 
 #[no_mangle]
-pub extern "C" fn sj_set_canvas_size(r: *mut SJ, width: i32, height: i32) {
+pub extern "C" fn sj_draw(r: *mut SJ, width: i32, height: i32) {
     unsafe {
         let mut r = Box::from_raw(r);
-        r.set_canvas_size(width, height);
-        std::mem::forget(r);
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn sj_draw(r: *mut SJ) {
-    unsafe {
-        let mut r = Box::from_raw(r);
-        r.draw();
+        r.draw(width, height);
         std::mem::forget(r);
     }
 }
