@@ -38,12 +38,6 @@ fn gleam_emscripten_init() -> GlPtr {
     }
 }
 
-fn main() {
-    unsafe {
-        emscripten_exit_with_live_runtime();
-    }
-}
-
 fn my_string_safe(i: *mut c_char) -> String {
     unsafe { CStr::from_ptr(i).to_string_lossy().into_owned() }
 }
@@ -166,6 +160,12 @@ impl SJ {
     }
 }
 
+fn main() {
+    unsafe {
+        emscripten_exit_with_live_runtime();
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn sj_create_webgl_context() {
     unsafe {
@@ -210,7 +210,11 @@ pub extern "C" fn sj_set_vertex_shader(r: *mut SJ, src: *mut c_char) {
     let data = my_string_safe(src);
     unsafe {
         let mut r = Box::from_raw(r);
-        r.set_vertex_shader(data.as_bytes()).unwrap();
+        let result = r.set_vertex_shader(data.as_bytes());
+        match result {
+            Err(e) => println!("{:?}", e),
+            Ok(_) => (),
+        };
         std::mem::forget(r);
     }
 }
@@ -220,7 +224,11 @@ pub extern "C" fn sj_set_fragment_shader(r: *mut SJ, src: *mut c_char) {
     let data = my_string_safe(src);
     unsafe {
         let mut r = Box::from_raw(r);
-        r.set_fragment_shader(data.as_bytes()).unwrap();
+        let result = r.set_fragment_shader(data.as_bytes());
+        match result {
+            Err(e) => println!("{:?}", e),
+            Ok(_) => (),
+        };
         std::mem::forget(r);
     }
 }

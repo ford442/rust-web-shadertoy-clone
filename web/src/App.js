@@ -117,7 +117,7 @@ class App extends React.PureComponent {
           fs: prev.fs
         };
       });
-      window.Module.sj.set_program(s, app.state.fs);
+      window.Module.sj.set_vertex_shader(s);
     };
 
     const onFragChange = function(s) {
@@ -127,7 +127,7 @@ class App extends React.PureComponent {
           fs: s
         };
       });
-      window.Module.sj.set_program(app.state.vs, s);
+      window.Module.sj.set_fragment_shader(s);
     };
 
     const config = {
@@ -145,6 +145,7 @@ class App extends React.PureComponent {
         type: 'row',
         content: [{
             type: 'stack',
+            activeItemIndex: 1,
             content: [
             {
               type: 'react-component',
@@ -153,8 +154,7 @@ class App extends React.PureComponent {
                 title: "vertex",
                 value: this.state.vs,
                 onChange: onVertChange
-              },
-              activeItemIndex: 0
+              }
             },
             {
               type: 'react-component',
@@ -164,7 +164,6 @@ class App extends React.PureComponent {
                 value: this.state.fs,
                 onChange: onFragChange
               },
-
             }
             ]},
           {type: 'react-component',
