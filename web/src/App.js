@@ -11,6 +11,7 @@ import Viewer from './Viewer';
 const default_vert_src = `#version 300 es
 
 out vec2 texCoord;
+
 void main()
 {
     float x = -1.0 + float((gl_VertexID & 1) << 2);
@@ -26,6 +27,7 @@ precision mediump float;
 
 // uniforms
 uniform float iTime;
+uniform vec3 iResolution;
 
 // in vars
 in vec2 texCoord;
@@ -33,8 +35,17 @@ in vec2 texCoord;
 // out vars
 out vec4 fragColor;
 
+void mainImage(out vec4 fragColor, in vec2 fragCoord);
+
 void main() {
-  fragColor = vec4(texCoord, 0.5 * (1.0 + cos(iTime)), 1.0);
+  mainImage(fragColor, gl_FragCoord.xy);
+}
+
+// YOUR CODE
+
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+	vec2 uv = fragCoord.xy / iResolution.xy;
+	fragColor = vec4(uv,0.5+0.5*sin(iTime),1.0);
 }`;
 
 

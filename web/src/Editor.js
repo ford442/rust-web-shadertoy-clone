@@ -24,7 +24,11 @@ class Editor extends Component {
     const rowFromGlErr = function(e) {
       const re = /^ERROR:\s+\d+:(\d+)/;
       const match = re.exec(e);
-      return parseInt(match[1], 10);
+      if (match) {
+        return parseInt(match[1], 10);
+      } else {
+        return 0;
+      }
     };
 
     const that = this;
@@ -32,6 +36,7 @@ class Editor extends Component {
       const err = that.props.onChange(s);
       const annotations = [];
       if (err) {
+        console.log(err);
         const row = rowFromGlErr(err);
         annotations.push({row: row - 1, column: 0, type: 'error', text: err});
       }
@@ -44,6 +49,9 @@ class Editor extends Component {
             'monokai' name = 'editor'
             value = {this.state.value}
             editorProps = {{ $blockScrolling: Infinity }}
+            tabSize = {2}
+            debounceChangePeriod = {300}
+            focus = {true}
             onChange = {onChange}
             annotations = {this.state.annotations}
       />);

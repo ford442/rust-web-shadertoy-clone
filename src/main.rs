@@ -24,7 +24,7 @@ pub struct SJ {
     vs: GLuint,
     fs: GLuint,
     program: GLuint,
-    uniform_i_time: std::time::Instant,
+    start_time: std::time::Instant,
 }
 
 fn gleam_emscripten_init() -> GlPtr {
@@ -69,7 +69,7 @@ impl SJ {
             vs: 0,
             fs: 0,
             program: 0,
-            uniform_i_time: std::time::Instant::now(),
+            start_time: std::time::Instant::now(),
         }
     }
 
@@ -140,13 +140,16 @@ impl SJ {
         }
         let gl = &self.gl;
         let now = std::time::Instant::now();
-        let i_time = now - self.uniform_i_time;
+        let i_time = now - self.start_time;
         let i_time_loc = gl.get_uniform_location(self.program, "iTime");
-        let i_time_s = i_time.as_secs() as f32 + i_time.subsec_nanos() as f32 / 1_000_000_000.0;
+        let i_time = i_time.as_secs() as f32 + i_time.subsec_nanos() as f32 / 1_000_000_000.0;
+        let i_resolution_loc = gl.get_uniform_location(self.program, "iResolution");
+
         gl.viewport(0, 0, width, height);
         gl.clear(gl::COLOR_BUFFER_BIT);
         gl.use_program(self.program);
-        gl.uniform_1f(i_time_loc, i_time_s);
+        gl.uniform_1f(i_time_loc, i_time);
+        gl.uniform_3f(i_resolution_loc, width as f32, height as f32, 1.0);
         gl.draw_arrays(gl::TRIANGLES, 0, 3);
     }
 }
