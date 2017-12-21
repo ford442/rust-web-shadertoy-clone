@@ -8,7 +8,7 @@ class Viewer extends Component {
     this.props.glContainer.setTitle('View');
   }
 
-  render() { return (<div><canvas id ={Config.canvasId} /></ div>); }
+  render() { return (<div id="viewer-canvas-parent"><canvas width='640' height='480' id ={Config.canvasId} /></ div>); }
 }
 
 export default Viewer;

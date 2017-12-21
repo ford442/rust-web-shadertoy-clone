@@ -45,10 +45,13 @@ class Editor extends Component {
 
 
     return (
-        <AceEditor width = '100vw' height = '100vw' mode = 'glsl' theme =
-            'monokai' name = 'editor'
+        <AceEditor width = '100%'
+            height = '100%'
+            mode = 'glsl'
+            theme = 'monokai'
+            name = 'editor'
             value = {this.state.value}
-            editorProps = {{ $blockScrolling: Infinity }}
+            editorProps = {{ $blockScrolling: Infinity}}
             tabSize = {2}
             debounceChangePeriod = {300}
             focus = {true}

@@ -24,7 +24,11 @@ pub struct SJ {
     vs: GLuint,
     fs: GLuint,
     program: GLuint,
+    frame: i32,
+    canvas_size: (i32, i32),
+    mouse: (f32, f32, f32, f32),
     start_time: std::time::Instant,
+    last_frame_time: std::time::Instant,
 }
 
 fn gleam_emscripten_init() -> GlPtr {
@@ -64,12 +68,17 @@ fn load_shader(gl: &GlPtr, shader_type: GLenum, source: &[&[u8]]) -> Result<GLui
 
 impl SJ {
     pub fn new(gl: GlPtr) -> SJ {
+        let now = std::time::Instant::now();
         SJ {
             gl: gl,
             vs: 0,
             fs: 0,
             program: 0,
-            start_time: std::time::Instant::now(),
+            frame: 0,
+            canvas_size: (0, 0),
+            mouse: (0.0, 0.0, -1.0, -1.0),
+            start_time: now,
+            last_frame_time: now,
         }
     }
 
@@ -134,23 +143,65 @@ impl SJ {
         Ok(())
     }
 
-    pub fn draw(&mut self, width: i32, height: i32) {
+    pub fn set_mouse(&mut self, x: f32, y: f32) {
+        if self.mouse.2 >= 0.0 && self.mouse.3 >= 0.0 {
+            self.mouse = (x, y, self.mouse.2, self.mouse.3);
+        }
+    }
+
+    pub fn set_mouse_down(&mut self, x: f32, y: f32) {
+        self.mouse = (x, y, x, y);
+    }
+
+    pub fn set_mouse_up(&mut self, x: f32, y: f32) {
+        self.mouse = (x, y, -x, -y);
+    }
+
+    pub fn set_canvas_size(&mut self, w: i32, h: i32) {
+        self.canvas_size = (w, h);
+    }
+
+    pub fn draw(&mut self) {
         if self.program == 0 {
             return;
         }
         let gl = &self.gl;
         let now = std::time::Instant::now();
         let i_time = now - self.start_time;
-        let i_time_loc = gl.get_uniform_location(self.program, "iTime");
-        let i_time = i_time.as_secs() as f32 + i_time.subsec_nanos() as f32 / 1_000_000_000.0;
-        let i_resolution_loc = gl.get_uniform_location(self.program, "iResolution");
 
-        gl.viewport(0, 0, width, height);
+        let i_time = i_time.as_secs() as f32 + i_time.subsec_nanos() as f32 / 1_000_000_000.0;
+        let i_time_delta = now - self.last_frame_time;
+        let i_time_delta = i_time_delta.as_secs() as f32 +
+            i_time_delta.subsec_nanos() as f32 / 1_000_000_000.0;
+        self.last_frame_time = now;
+
+        let i_time_loc = gl.get_uniform_location(self.program, "iTime");
+        let i_time_delta_loc = gl.get_uniform_location(self.program, "iTimeDelta");
+        let i_resolution_loc = gl.get_uniform_location(self.program, "iResolution");
+        let i_frame_loc = gl.get_uniform_location(self.program, "iFrame");
+        let i_mouse_loc = gl.get_uniform_location(self.program, "iMouse");
+
+        gl.viewport(0, 0, self.canvas_size.0, self.canvas_size.1);
         gl.clear(gl::COLOR_BUFFER_BIT);
         gl.use_program(self.program);
+        gl.uniform_1i(i_frame_loc, self.frame);
         gl.uniform_1f(i_time_loc, i_time);
-        gl.uniform_3f(i_resolution_loc, width as f32, height as f32, 1.0);
+        gl.uniform_1f(i_time_delta_loc, i_time_delta);
+        gl.uniform_3f(
+            i_resolution_loc,
+            self.canvas_size.0 as f32,
+            self.canvas_size.1 as f32,
+            self.canvas_size.0 as f32 / self.canvas_size.1 as f32,
+        );
+        gl.uniform_4f(
+            i_mouse_loc,
+            self.mouse.0,
+            self.mouse.1,
+            self.mouse.2,
+            self.mouse.3,
+        );
         gl.draw_arrays(gl::TRIANGLES, 0, 3);
+        self.frame += 1;
     }
 }
 
@@ -241,10 +292,46 @@ pub extern "C" fn sj_set_fragment_shader(r: *mut SJ, src: *mut c_char) -> *mut c
 }
 
 #[no_mangle]
-pub extern "C" fn sj_draw(r: *mut SJ, width: i32, height: i32) {
+pub extern "C" fn sj_set_canvas_size(r: *mut SJ, width: i32, height: i32) {
     unsafe {
         let mut r = Box::from_raw(r);
-        r.draw(width, height);
+        r.set_canvas_size(width, height);
+        std::mem::forget(r);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn sj_set_mouse(r: *mut SJ, x: f32, y: f32) {
+    unsafe {
+        let mut r = Box::from_raw(r);
+        r.set_mouse(x, y);
+        std::mem::forget(r);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn sj_set_mouse_up(r: *mut SJ, x: f32, y: f32) {
+    unsafe {
+        let mut r = Box::from_raw(r);
+        r.set_mouse_up(x, y);
+        std::mem::forget(r);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn sj_set_mouse_down(r: *mut SJ, x: f32, y: f32) {
+    unsafe {
+        let mut r = Box::from_raw(r);
+        r.set_mouse_down(x, y);
+        std::mem::forget(r);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn sj_draw(r: *mut SJ) {
+    unsafe {
+        let mut r = Box::from_raw(r);
+        r.draw();
         std::mem::forget(r);
     }
 }
