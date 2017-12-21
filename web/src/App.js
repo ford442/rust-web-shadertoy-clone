@@ -8,7 +8,7 @@ import ReactDOM from 'react-dom';
 import Editor from './Editor';
 import Viewer from './Viewer';
 
-const default_vert_src = `#version 300 es
+const default_vs_src = `#version 300 es
 
 out vec2 texCoord;
 
@@ -22,7 +22,7 @@ void main()
 }
 `;
 
-const default_frag_src = `#version 300 es
+const default_fs_src = `#version 300 es
 precision mediump float;
 
 // uniforms
@@ -90,13 +90,17 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 class App extends React.PureComponent {
   constructor(props) {
     super(props);
+    const vs = localStorage.getItem("vs") || default_vs_src;
+    const fs = localStorage.getItem("fs") || default_fs_src;
     this.state = {
-      vs: default_vert_src,
-      fs: default_frag_src
+      vs: vs,
+      fs: fs
     };
   }
 
   componentDidMount() {
+    const app = this;
+
     fetch('shaderjob.wasm')
       .then((response) => response.arrayBuffer())
       .then((buffer) => {
@@ -217,7 +221,7 @@ class App extends React.PureComponent {
 
           SJ.ffi.create_webgl_context();
           SJ.ctx = SJ.ffi.init();
-          const err = SJ.set_program(default_vert_src, default_frag_src);
+          const err = SJ.set_program(app.state.vs, app.state.fs);
           if (err) {
             console.log(err);
           }
@@ -230,25 +234,25 @@ class App extends React.PureComponent {
         script.src = "shaderjob.js";
       });
 
-    const app = this;
-
-    const onVertChange = function(s) {
+    const onVertChange = (s) => {
       app.setState((prev, props) => {
         return {
           vs: s,
           fs: prev.fs
         };
       });
+      localStorage.setItem("vs", s);
       return window.Module.sj.set_vertex_shader(s);
     };
 
-    const onFragChange = function(s) {
+    const onFragChange = (s) => {
       app.setState((prev, props) => {
         return {
           vs: prev.vs,
           fs: s
         };
       });
+      localStorage.setItem("fs", s);
       return window.Module.sj.set_fragment_shader(s);
     };
 
