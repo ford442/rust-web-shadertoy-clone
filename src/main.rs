@@ -24,11 +24,13 @@ pub struct SJ {
     vs: GLuint,
     fs: GLuint,
     program: GLuint,
+    playing: bool,
     frame: i32,
     canvas_size: (i32, i32),
     mouse: (f32, f32, f32, f32),
     start_time: std::time::Instant,
     last_frame_time: std::time::Instant,
+    pause_time: std::time::Instant,
 }
 
 fn gleam_emscripten_init() -> GlPtr {
@@ -73,13 +75,41 @@ impl SJ {
             gl: gl,
             vs: 0,
             fs: 0,
+            playing: true,
             program: 0,
             frame: 0,
             canvas_size: (0, 0),
-            mouse: (0.0, 0.0, -1.0, -1.0),
+            mouse: (0.0, 0.0, -0.0, -0.0),
             start_time: now,
             last_frame_time: now,
+            pause_time: now,
         }
+    }
+
+    pub fn play(&mut self) {
+        if !self.playing {
+            // account for the amount of time paused
+            // in the start_time
+            let now = std::time::Instant::now();
+            self.start_time = self.start_time + (now - self.pause_time);
+        }
+        self.playing = true;
+    }
+
+    pub fn pause(&mut self) {
+        if self.playing {
+            let now = std::time::Instant::now();
+            self.pause_time = now;
+        }
+        self.playing = false;
+    }
+
+    pub fn restart(&mut self) {
+        let now = std::time::Instant::now();
+        self.start_time = now;
+        self.pause_time = now;
+        self.last_frame_time = now;
+        self.frame = 0;
     }
 
     pub fn set_program(&mut self, vs_src: &[u8], fs_src: &[u8]) -> Result<(), String> {
@@ -162,6 +192,9 @@ impl SJ {
     }
 
     pub fn draw(&mut self) {
+        if !self.playing {
+            return;
+        }
         if self.program == 0 {
             return;
         }
@@ -296,6 +329,33 @@ pub extern "C" fn sj_set_canvas_size(r: *mut SJ, width: i32, height: i32) {
     unsafe {
         let mut r = Box::from_raw(r);
         r.set_canvas_size(width, height);
+        std::mem::forget(r);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn sj_play(r: *mut SJ) {
+    unsafe {
+        let mut r = Box::from_raw(r);
+        r.play();
+        std::mem::forget(r);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn sj_pause(r: *mut SJ) {
+    unsafe {
+        let mut r = Box::from_raw(r);
+        r.pause();
+        std::mem::forget(r);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn sj_restart(r: *mut SJ) {
+    unsafe {
+        let mut r = Box::from_raw(r);
+        r.restart();
         std::mem::forget(r);
     }
 }

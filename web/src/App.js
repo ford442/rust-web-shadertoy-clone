@@ -110,17 +110,20 @@ class App extends React.PureComponent {
           window.Module.sj = {};
           const SJ = window.Module.sj;
           SJ.ffi = {};
-          SJ.ffi.create_webgl_context= window.Module.cwrap('sj_create_webgl_context', null, []);
-          SJ.ffi.init = window.Module.cwrap('sj_emscripten_init', 'number', []);
-          SJ.ffi.destroy = window.Module.cwrap('sj_destroy', null, ['number']);
-          SJ.ffi.set_program = window.Module.cwrap('sj_set_program', 'string', ['number', 'string', 'string']);
-          SJ.ffi.set_vertex_shader= window.Module.cwrap('sj_set_vertex_shader', 'string', ['number', 'string']);
-          SJ.ffi.set_fragment_shader= window.Module.cwrap('sj_set_fragment_shader', 'string', ['number', 'string']);
-          SJ.ffi.draw= window.Module.cwrap('sj_draw', null, ['number']);
-          SJ.ffi.set_canvas_size= window.Module.cwrap('sj_set_canvas_size', null, ['number', 'number', 'number']);
-          SJ.ffi.set_mouse = window.Module.cwrap('sj_set_mouse', null, ['number', 'number', 'number']);
-          SJ.ffi.set_mouse_up = window.Module.cwrap('sj_set_mouse_up', null, ['number', 'number', 'number']);
-          SJ.ffi.set_mouse_down = window.Module.cwrap('sj_set_mouse_down', null, ['number', 'number', 'number']);
+          SJ.ffi.create_webgl_context = window.Module.cwrap('sj_create_webgl_context', null, []);
+          SJ.ffi.init                 = window.Module.cwrap('sj_emscripten_init', 'number', []);
+          SJ.ffi.destroy              = window.Module.cwrap('sj_destroy', null, ['number']);
+          SJ.ffi.set_program          = window.Module.cwrap('sj_set_program', 'string', ['number', 'string', 'string']);
+          SJ.ffi.set_vertex_shader    = window.Module.cwrap('sj_set_vertex_shader', 'string', ['number', 'string']);
+          SJ.ffi.set_fragment_shader  = window.Module.cwrap('sj_set_fragment_shader', 'string', ['number', 'string']);
+          SJ.ffi.draw                 = window.Module.cwrap('sj_draw', null, ['number']);
+          SJ.ffi.set_canvas_size      = window.Module.cwrap('sj_set_canvas_size', null, ['number', 'number', 'number']);
+          SJ.ffi.set_mouse            = window.Module.cwrap('sj_set_mouse', null, ['number', 'number', 'number']);
+          SJ.ffi.set_mouse_up         = window.Module.cwrap('sj_set_mouse_up', null, ['number', 'number', 'number']);
+          SJ.ffi.set_mouse_down       = window.Module.cwrap('sj_set_mouse_down', null, ['number', 'number', 'number']);
+          SJ.ffi.play                 = window.Module.cwrap('sj_play', null, ['number']);
+          SJ.ffi.pause                = window.Module.cwrap('sj_pause', null, ['number']);
+          SJ.ffi.restart              = window.Module.cwrap('sj_restart', null, ['number']);
 
           SJ.set_program = (vs, fs) => {
             const ctx = SJ.ctx;
@@ -134,7 +137,7 @@ class App extends React.PureComponent {
             const ctx = SJ.ctx;
             return SJ.ffi.set_fragment_shader(ctx, s);
           };
-          SJ.draw = (w, h) => {
+          SJ.draw = () => {
             const ctx = SJ.ctx;
             SJ.ffi.draw(ctx);
           };
@@ -153,6 +156,18 @@ class App extends React.PureComponent {
           SJ.set_mouse_up = (x, y) => {
             const ctx = SJ.ctx;
             SJ.ffi.set_mouse_up(ctx, x, y);
+          };
+          SJ.play = () => {
+            const ctx = SJ.ctx;
+            SJ.ffi.play(ctx);
+          };
+          SJ.pause = () => {
+            const ctx = SJ.ctx;
+            SJ.ffi.pause(ctx);
+          };
+          SJ.restart = () => {
+            const ctx = SJ.ctx;
+            SJ.ffi.restart(ctx);
           };
 
           // return the mouse position in pixel
@@ -191,7 +206,7 @@ class App extends React.PureComponent {
 
           window.Module.canvas.addEventListener('mousemove', onMouseMove, false);
           window.Module.canvas.addEventListener('mousedown', onMouseDown, false);
-          window.addEventListener('mouseup', onMouseUp, false);
+          window.Module.canvas.addEventListener('mouseup', onMouseUp, false);
 
           const loop = () => {
             const c = window.Module.canvas;
@@ -206,7 +221,7 @@ class App extends React.PureComponent {
           if (err) {
             console.log(err);
           }
-          loop();
+          window.requestAnimationFrame(loop);
         };
 
         // script
