@@ -2,6 +2,9 @@ extern crate emscripten_sys;
 extern crate gleam;
 
 mod shaderjob;
+
+// (NOTE: jshrake): pub use the C API to ensure
+// the functions are exported
 pub use shaderjob::ffi::*;
 use std::os::raw::c_char;
 
@@ -12,15 +15,6 @@ use emscripten_sys::{emscripten_GetProcAddress, emscripten_exit_with_live_runtim
 fn main() {
     unsafe {
         emscripten_exit_with_live_runtime();
-    }
-}
-
-fn gleam_emscripten_init() -> shaderjob::GlPtr {
-    unsafe {
-        shaderjob::gl::GlesFns::load_with(|addr| {
-            let addr = std::ffi::CString::new(addr).unwrap();
-            emscripten_GetProcAddress(addr.into_raw() as *const _) as *const _
-        })
     }
 }
 
@@ -35,4 +29,13 @@ pub extern "C" fn sj_init(canvas_element: *mut c_char, major_version: i32) -> *m
     }
     let r = Box::new(shaderjob::SJ::new(gleam_emscripten_init()));
     Box::into_raw(r)
+}
+
+fn gleam_emscripten_init() -> shaderjob::GlPtr {
+    unsafe {
+        shaderjob::gl::GlesFns::load_with(|addr| {
+            let addr = std::ffi::CString::new(addr).unwrap();
+            emscripten_GetProcAddress(addr.into_raw() as *const _) as *const _
+        })
+    }
 }

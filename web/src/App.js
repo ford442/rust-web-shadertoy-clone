@@ -125,8 +125,8 @@ class App extends React.Component {
       });
       localStorage.setItem("vs", s);
 
-      if (self.sj) {
-        return self.state.sj.set_vertex_shader(s);
+      if (self.state.sj) {
+        return self.state.sj.set_program(s, self.state.fs);
       } else {
         return null;
       }
@@ -142,8 +142,8 @@ class App extends React.Component {
       });
 
       localStorage.setItem("fs", s);
-      if (self.sj) {
-        return self.state.sj.set_fragment_shader(s);
+      if (self.state.sj) {
+        return self.state.sj.set_program(self.state.vs, s);
       } else {
         return null;
       }
