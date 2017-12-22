@@ -52,8 +52,8 @@ class Viewer extends PureComponent {
       self.canvas.addEventListener('mousemove', onMouseMove, false);
       self.canvas.addEventListener('mousedown', onMouseDown, false);
       self.canvas.addEventListener('mouseup', onMouseUp, false);
-      self.sj = new Shaderjob(window.Module, self.props.canvasId, 2);
-      self.sj.set_program(self.props.vs, self.props.fs);
+      self.sj = new Shaderjob(self.props.canvasId, 2);
+      self.props.beforeFirstFrame(self.sj);
       window.requestAnimationFrame(loop);
     };
     shaderjobInit(onRuntimeInitialized);

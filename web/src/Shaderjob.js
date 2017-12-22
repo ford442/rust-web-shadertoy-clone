@@ -11,7 +11,8 @@ export async function shaderjobInit(onRuntimeInitialized) {
 }
 
 export default class Shaderjob {
-  constructor(module, canvas_element, gl_major) {
+  constructor(canvas_element, gl_major) {
+    const module = window.Module;
     this.ffi = {};
     this.ffi.init                 = module.cwrap('sj_init', 'number', ['string', 'number']);
     this.ffi.destroy              = module.cwrap('sj_destroy', null, ['number']);
@@ -26,7 +27,6 @@ export default class Shaderjob {
     this.ffi.play                 = module.cwrap('sj_play', null, ['number']);
     this.ffi.pause                = module.cwrap('sj_pause', null, ['number']);
     this.ffi.restart              = module.cwrap('sj_restart', null, ['number']);
-    console.log(canvas_element);
     this.ctx = this.ffi.init(canvas_element, gl_major);
   }
 

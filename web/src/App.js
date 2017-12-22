@@ -94,32 +94,41 @@ class App extends React.PureComponent {
     const fs = localStorage.getItem("fs") || default_fs_src;
     this.state = {
       vs: vs,
-      fs: fs
+      fs: fs,
+      sj: null
     };
   }
 
   componentDidMount() {
-    const app = this;
+    const self = this;
     const onVertChange = (s) => {
-      app.setState((prev, props) => {
+      self.setState((prev, props) => {
         return {
           vs: s,
-          fs: prev.fs
+          fs: prev.fs,
+          sj: prev.sj
         };
       });
       localStorage.setItem("vs", s);
-      return module.sj.set_vertex_shader(s);
+      return self.sj.set_vertex_shader(s);
     };
 
     const onFragChange = (s) => {
-      app.setState((prev, props) => {
+      self.setState((prev, props) => {
         return {
           vs: prev.vs,
-          fs: s
+          fs: s,
+          sj: prev.sj
         };
       });
       localStorage.setItem("fs", s);
-      return window.Module.sj.set_fragment_shader(s);
+      return self.sj.set_fragment_shader(s);
+    };
+
+    const viewerBeforeFirstFrame = (sj) => {
+      window.sj = sj;
+      self.sj = sj;
+      self.sj.set_program(self.state.vs, self.state.fs);
     };
 
     const config = {
@@ -161,8 +170,7 @@ class App extends React.PureComponent {
           {type: 'react-component',
             component: 'Viewer',
             props: {
-              vs: this.state.vs,
-              fs: this.state.fs,
+              beforeFirstFrame: viewerBeforeFirstFrame,
               canvasId: "viewer-canvas"
             },
           },
