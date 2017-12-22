@@ -7,6 +7,7 @@ import ReactDOM from 'react-dom';
 import Editor from './Editor';
 import Viewer from './Viewer';
 
+import Shaderjob, {shaderjobInit} from './Shaderjob.js';
 
 const default_vs_src = `#version 300 es
 
@@ -87,7 +88,9 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 }`;
 
 
-class App extends React.PureComponent {
+const CANVASID = "shaderjob-canvas";
+
+class App extends React.Component {
   constructor(props) {
     super(props);
     const vs = localStorage.getItem("vs") || default_vs_src;
@@ -97,6 +100,17 @@ class App extends React.PureComponent {
       fs: fs,
       sj: null
     };
+    const self = this;
+    const onReady = () => {
+      self.setState((prev, props) => {
+        const next = prev;
+        next.sj = new Shaderjob(CANVASID, 2);
+        next.sj.set_program(next.vs, next.fs);
+
+        return next;
+      });
+    };
+    shaderjobInit(onReady);
   }
 
   componentDidMount() {
@@ -110,7 +124,12 @@ class App extends React.PureComponent {
         };
       });
       localStorage.setItem("vs", s);
-      return self.sj.set_vertex_shader(s);
+
+      if (self.sj) {
+        return self.state.sj.set_vertex_shader(s);
+      } else {
+        return null;
+      }
     };
 
     const onFragChange = (s) => {
@@ -121,14 +140,17 @@ class App extends React.PureComponent {
           sj: prev.sj
         };
       });
+
       localStorage.setItem("fs", s);
-      return self.sj.set_fragment_shader(s);
+      if (self.sj) {
+        return self.state.sj.set_fragment_shader(s);
+      } else {
+        return null;
+      }
     };
 
-    const viewerBeforeFirstFrame = (sj) => {
-      window.sj = sj;
-      self.sj = sj;
-      self.sj.set_program(self.state.vs, self.state.fs);
+    const shaderjob = () => {
+      return self.state.sj;
     };
 
     const config = {
@@ -170,8 +192,8 @@ class App extends React.PureComponent {
           {type: 'react-component',
             component: 'Viewer',
             props: {
-              beforeFirstFrame: viewerBeforeFirstFrame,
-              canvasId: "viewer-canvas"
+              sj: shaderjob,
+              canvasId: CANVASID,
             },
           },
         ]
