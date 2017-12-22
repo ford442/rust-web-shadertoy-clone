@@ -1,5 +1,4 @@
 import './App.css';
-import Config from './Config.js';
 
 import GoldenLayout from 'golden-layout';
 import React from 'react';
@@ -7,6 +6,7 @@ import ReactDOM from 'react-dom';
 
 import Editor from './Editor';
 import Viewer from './Viewer';
+
 
 const default_vs_src = `#version 300 es
 
@@ -100,140 +100,6 @@ class App extends React.PureComponent {
 
   componentDidMount() {
     const app = this;
-
-    fetch('shaderjob.wasm')
-      .then((response) => response.arrayBuffer())
-      .then((buffer) => {
-        // create the emscripten module,
-        // attach it to the global window
-        const canvas = document.getElementById(Config.canvasId);
-        window.Module = {};
-        window.Module.canvas = canvas;
-        window.Module.wasmBinary = buffer;
-        window.Module.onRuntimeInitialized = () => {
-          window.Module.sj = {};
-          const SJ = window.Module.sj;
-          SJ.ffi = {};
-          SJ.ffi.create_webgl_context = window.Module.cwrap('sj_create_webgl_context', null, []);
-          SJ.ffi.init                 = window.Module.cwrap('sj_emscripten_init', 'number', []);
-          SJ.ffi.destroy              = window.Module.cwrap('sj_destroy', null, ['number']);
-          SJ.ffi.set_program          = window.Module.cwrap('sj_set_program', 'string', ['number', 'string', 'string']);
-          SJ.ffi.set_vertex_shader    = window.Module.cwrap('sj_set_vertex_shader', 'string', ['number', 'string']);
-          SJ.ffi.set_fragment_shader  = window.Module.cwrap('sj_set_fragment_shader', 'string', ['number', 'string']);
-          SJ.ffi.draw                 = window.Module.cwrap('sj_draw', null, ['number']);
-          SJ.ffi.set_canvas_size      = window.Module.cwrap('sj_set_canvas_size', null, ['number', 'number', 'number']);
-          SJ.ffi.set_mouse            = window.Module.cwrap('sj_set_mouse', null, ['number', 'number', 'number']);
-          SJ.ffi.set_mouse_up         = window.Module.cwrap('sj_set_mouse_up', null, ['number', 'number', 'number']);
-          SJ.ffi.set_mouse_down       = window.Module.cwrap('sj_set_mouse_down', null, ['number', 'number', 'number']);
-          SJ.ffi.play                 = window.Module.cwrap('sj_play', null, ['number']);
-          SJ.ffi.pause                = window.Module.cwrap('sj_pause', null, ['number']);
-          SJ.ffi.restart              = window.Module.cwrap('sj_restart', null, ['number']);
-
-          SJ.set_program = (vs, fs) => {
-            const ctx = SJ.ctx;
-            return SJ.ffi.set_program(ctx, vs, fs);
-          };
-          SJ.set_vertex_shader = (s) => {
-            const ctx = SJ.ctx;
-            return SJ.ffi.set_vertex_shader(ctx, s);
-          };
-          SJ.set_fragment_shader = (s) => {
-            const ctx = SJ.ctx;
-            return SJ.ffi.set_fragment_shader(ctx, s);
-          };
-          SJ.draw = () => {
-            const ctx = SJ.ctx;
-            SJ.ffi.draw(ctx);
-          };
-          SJ.set_canvas_size = (w, h) => {
-            const ctx = SJ.ctx;
-            SJ.ffi.set_canvas_size(ctx, w, h);
-          };
-          SJ.set_mouse = (x, y) => {
-            const ctx = SJ.ctx;
-            SJ.ffi.set_mouse(ctx, x, y);
-          };
-          SJ.set_mouse_down = (x, y) => {
-            const ctx = SJ.ctx;
-            SJ.ffi.set_mouse_down(ctx, x, y);
-          };
-          SJ.set_mouse_up = (x, y) => {
-            const ctx = SJ.ctx;
-            SJ.ffi.set_mouse_up(ctx, x, y);
-          };
-          SJ.play = () => {
-            const ctx = SJ.ctx;
-            SJ.ffi.play(ctx);
-          };
-          SJ.pause = () => {
-            const ctx = SJ.ctx;
-            SJ.ffi.pause(ctx);
-          };
-          SJ.restart = () => {
-            const ctx = SJ.ctx;
-            SJ.ffi.restart(ctx);
-          };
-
-          // return the mouse position in pixel
-          // space
-          const getMousePos = (canvas, evt) => {
-            const rect = canvas.getBoundingClientRect();
-            const el_x = evt.clientX - rect.left;
-            const el_y = evt.clientY - rect.top;
-            const norm_x = el_x / rect.width;
-            const norm_y = el_y / rect.height;
-            const px_x = norm_x * canvas.width;
-            const px_y = norm_y * canvas.height;
-            return {
-              x: px_x,
-              y: px_y,
-            };
-          };
-
-          const onMouseMove = (e) => {
-            const c = window.Module.canvas;
-            const pos = getMousePos(c, e);
-            SJ.set_mouse(pos.x, c.height - pos.y);
-          };
-
-          const onMouseDown = (e) => {
-            const c = window.Module.canvas;
-            const pos = getMousePos(c, e);
-            SJ.set_mouse_down(pos.x, c.height - pos.y);
-          };
-
-          const onMouseUp = (e) => {
-            const c = window.Module.canvas;
-            const pos = getMousePos(c, e);
-            SJ.set_mouse_up(pos.x, c.height - pos.y);
-          };
-
-          window.Module.canvas.addEventListener('mousemove', onMouseMove, false);
-          window.Module.canvas.addEventListener('mousedown', onMouseDown, false);
-          window.Module.canvas.addEventListener('mouseup', onMouseUp, false);
-
-          const loop = () => {
-            const c = window.Module.canvas;
-            SJ.set_canvas_size(c.width, c.height);
-            SJ.draw();
-            window.requestAnimationFrame(loop);
-          };
-
-          SJ.ffi.create_webgl_context();
-          SJ.ctx = SJ.ffi.init();
-          const err = SJ.set_program(app.state.vs, app.state.fs);
-          if (err) {
-            console.log(err);
-          }
-          window.requestAnimationFrame(loop);
-        };
-
-        // script
-        const script = document.createElement('script');
-        document.body.appendChild(script);
-        script.src = "shaderjob.js";
-      });
-
     const onVertChange = (s) => {
       app.setState((prev, props) => {
         return {
@@ -242,7 +108,7 @@ class App extends React.PureComponent {
         };
       });
       localStorage.setItem("vs", s);
-      return window.Module.sj.set_vertex_shader(s);
+      return module.sj.set_vertex_shader(s);
     };
 
     const onFragChange = (s) => {
@@ -293,7 +159,12 @@ class App extends React.PureComponent {
             }
             ]},
           {type: 'react-component',
-            component: 'Viewer'
+            component: 'Viewer',
+            props: {
+              vs: this.state.vs,
+              fs: this.state.fs,
+              canvasId: "viewer-canvas"
+            },
           },
         ]
       }]

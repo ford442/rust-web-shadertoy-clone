@@ -1,4 +1,4 @@
 [target.wasm32-unknown-emscripten]
 rustflags = [
-    "-Clink-args=-s EXPORTED_FUNCTIONS=['_main','_sj_create_webgl_context','_sj_emscripten_init','_sj_destroy','_sj_set_vertex_shader','_sj_set_program','_sj_set_fragment_shader','_sj_draw','_sj_set_canvas_size','_sj_set_mouse','_sj_set_mouse_down','_sj_set_mouse_up','_sj_restart','_sj_play','_sj_pause'] -s EXTRA_EXPORTED_RUNTIME_METHODS=['cwrap'] -s WASM=1 -s USE_WEBGL2=1"
+    "-Clink-args=-s EXPORTED_FUNCTIONS=['_main','_sj_init','_sj_destroy','_sj_set_vertex_shader','_sj_set_program','_sj_set_fragment_shader','_sj_draw','_sj_set_canvas_size','_sj_set_mouse','_sj_set_mouse_down','_sj_set_mouse_up','_sj_restart','_sj_play','_sj_pause'] -s EXTRA_EXPORTED_RUNTIME_METHODS=['cwrap'] -s WASM=1 -s USE_WEBGL2=1"
 ]

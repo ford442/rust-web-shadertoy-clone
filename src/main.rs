@@ -3,6 +3,7 @@ extern crate gleam;
 
 mod shaderjob;
 pub use shaderjob::ffi::*;
+use std::os::raw::c_char;
 
 use emscripten_sys::{emscripten_GetProcAddress, emscripten_exit_with_live_runtime,
                      emscripten_webgl_init_context_attributes, emscripten_webgl_create_context,
@@ -23,20 +24,15 @@ fn gleam_emscripten_init() -> shaderjob::GlPtr {
     }
 }
 
-// c interface
 #[no_mangle]
-pub extern "C" fn sj_create_webgl_context() {
+pub extern "C" fn sj_init(canvas_element: *mut c_char, major_version: i32) -> *mut shaderjob::SJ {
     unsafe {
         let mut attributes: EmscriptenWebGLContextAttributes = std::mem::uninitialized();
         emscripten_webgl_init_context_attributes(&mut attributes);
-        attributes.majorVersion = 2;
-        let handle = emscripten_webgl_create_context(std::ptr::null(), &attributes);
+        attributes.majorVersion = major_version;
+        let handle = emscripten_webgl_create_context(canvas_element, &attributes);
         emscripten_webgl_make_context_current(handle);
     }
-}
-
-#[no_mangle]
-pub extern "C" fn sj_emscripten_init() -> *mut shaderjob::SJ {
     let r = Box::new(shaderjob::SJ::new(gleam_emscripten_init()));
     Box::into_raw(r)
 }
