@@ -2,7 +2,7 @@
 all: build
 
 .PHONY: init
-init: rustup-target-init emsdk-portable/emsdk_env.sh
+init: rustup-target-init ~/emsdk/emsdk_env.sh
 
 .PHONY: build
 build: emscripten-build copy
